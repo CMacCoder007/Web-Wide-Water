@@ -107,9 +107,19 @@ src/creatures/          one file per creature (prey.js holds the small life)
 src/boot.js             starts everything (always last)
 demo/index.html         offline test page
 docs/ADDING_A_CREATURE.md
+tools/check.js          one command that catches syntax errors and missing files
 ```
 
 To add a creature, read [docs/ADDING_A_CREATURE.md](docs/ADDING_A_CREATURE.md).
+
+### Before you reload or commit
+
+```bash
+node tools/check.js
+```
+
+It parses every script with the same engine Chrome uses and checks that every file the manifest and the
+pages refer to exists. One broken line stops a whole file loading, so run it after any edit.
 
 ### Testing without the extension
 
