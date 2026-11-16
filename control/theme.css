@@ -1,0 +1,84 @@
+/* The look shared by the quick popup and the control centre: the sea god's own
+   instruments. Deep water, bronze and gold, carved lettering. */
+:root {
+  --abyss: #04111d;
+  --deep: #0a2436;
+  --tide: #0f3a52;
+  --foam: #e9f3f2;
+  --mist: #9fb9c2;
+  --gold: #e0bd62;
+  --gold-dim: #a8873a;
+  --bronze: rgba(224, 189, 98, .28);
+  --glass: rgba(10, 36, 54, .72);
+  --sea: #2ec4b6;
+  --danger: #e2685a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--foam);
+  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 80% -10%, rgba(46, 196, 182, .16), transparent 60%),
+    radial-gradient(900px 600px at 0% 110%, rgba(224, 189, 98, .08), transparent 60%),
+    linear-gradient(180deg, var(--abyss), var(--deep) 55%, #0c3145);
+  background-attachment: fixed;
+}
+h1, h2, h3, .carved { font-family: Georgia, "Times New Roman", serif; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 0; }
+h1 { font-size: 22px; }
+h2 { font-size: 17px; }
+h3 { font-size: 12px; letter-spacing: .18em; color: var(--gold-dim); margin: 22px 0 8px; }
+.trident { font-family: Georgia, serif; font-size: 1.5em; color: var(--gold); line-height: 1; text-shadow: 0 0 18px rgba(224, 189, 98, .5); }
+p { margin: 0; }
+.lede { color: var(--mist); font-style: italic; font-family: Georgia, serif; }
+.hint { color: var(--mist); font-size: 13px; margin-top: 4px; }
+
+.panel { background: var(--glass); border: 1px solid var(--bronze); border-radius: 14px; padding: 20px 22px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .05); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 46px; padding: 6px 0; border-bottom: 1px solid rgba(159, 185, 194, .12); }
+.row:last-child { border-bottom: 0; }
+.row .what { flex: 1; min-width: 0; }
+.row .what b { font-weight: 600; }
+.row .what small { display: block; color: var(--mist); font-size: 12.5px; line-height: 1.35; }
+
+/* big, easy switches */
+.switch { position: relative; display: inline-block; width: 54px; height: 30px; flex: none; cursor: pointer; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; border-radius: 30px; background: rgba(159, 185, 194, .25); border: 1px solid rgba(159, 185, 194, .3); transition: background .2s, border-color .2s; }
+.switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--foam); box-shadow: 0 2px 5px rgba(0, 0, 0, .4); transition: transform .2s; }
+.switch input:checked + span { background: linear-gradient(90deg, var(--gold-dim), var(--gold)); border-color: var(--gold); }
+.switch input:checked + span::after { transform: translateX(24px); }
+.switch input:focus-visible + span { outline: 2px solid var(--sea); outline-offset: 2px; }
+.switch.grand { width: 76px; height: 40px; }
+.switch.grand span::after { width: 32px; height: 32px; }
+.switch.grand input:checked + span::after { transform: translateX(36px); }
+
+/* dials */
+.dial { display: block; padding: 10px 0; border-bottom: 1px solid rgba(159, 185, 194, .12); }
+.dial:last-child { border-bottom: 0; }
+.dial .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dial .top b { font-weight: 600; }
+.dial output { color: var(--gold); font-variant-numeric: tabular-nums; font-size: 13.5px; min-width: 64px; text-align: right; }
+.dial small { display: block; color: var(--mist); font-size: 12.5px; }
+.dial .ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--mist); }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; margin: 4px 0 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: linear-gradient(90deg, rgba(46, 196, 182, .7), rgba(224, 189, 98, .8)); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3cf, var(--gold) 60%, var(--gold-dim)); border: 1px solid #5e4a1c; box-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+input[type="range"]:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; border-radius: 6px; }
+
+select, input[type="text"], input[type="number"] {
+  font: inherit; color: var(--foam); background: rgba(4, 17, 29, .7); border: 1px solid var(--bronze); border-radius: 8px; padding: 8px 10px; min-width: 170px;
+}
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; }
+option { background: var(--deep); color: var(--foam); }
+input[type="color"] { width: 54px; height: 36px; padding: 0; border: 1px solid var(--bronze); border-radius: 8px; background: transparent; cursor: pointer; }
+
+button { font: inherit; cursor: pointer; color: var(--gold); background: rgba(224, 189, 98, .08); border: 1px solid var(--gold-dim); border-radius: 999px; padding: 8px 18px; transition: background .15s, color .15s; }
+button:hover:not(:disabled) { background: var(--gold); color: #2a2009; }
+button:disabled { opacity: .4; cursor: default; }
+button.decree { background: linear-gradient(180deg, var(--gold), var(--gold-dim)); color: #2a2009; font-weight: 700; letter-spacing: .06em; border-color: var(--gold); padding: 10px 26px; }
+button.decree:hover:not(:disabled) { filter: brightness(1.1); }
+button.quiet { border-color: rgba(159, 185, 194, .4); color: var(--mist); background: transparent; }
+button.quiet:hover:not(:disabled) { background: rgba(159, 185, 194, .2); color: var(--foam); }
+
+.wave { height: 10px; margin: 14px 0; opacity: .5; background: radial-gradient(circle at 10px -4px, transparent 9px, var(--gold-dim) 10px, transparent 11px) 0 0 / 20px 10px repeat-x; }
+kbd { font: inherit; font-size: 12px; padding: 1px 6px; border: 1px solid var(--bronze); border-radius: 5px; background: rgba(4, 17, 29, .6); }
+[hidden] { display: none !important; }

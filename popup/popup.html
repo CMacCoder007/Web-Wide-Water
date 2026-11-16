@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Web-Wide-Water</title>
+  <link rel="stylesheet" href="../control/theme.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <span class="trident">&Psi;</span>
+    <div class="title">
+      <h1>Web-Wide-Water</h1>
+      <p id="status" class="lede">The sea sleeps</p>
+    </div>
+    <label class="switch grand" title="Raise or still the sea, everywhere"><input type="checkbox" id="on"><span></span></label>
+  </header>
+
+  <main>
+    <div id="site-row" class="row" hidden>
+      <span class="what"><b>On this site</b><small id="host"></small></span>
+      <label class="switch"><input type="checkbox" id="site"><span></span></label>
+    </div>
+    <p id="no-page" class="hint" hidden>The sea cannot reach this page (browser pages and the Web Store are beyond it). If you have only just installed or reloaded, refresh the tab.</p>
+
+    <div class="row">
+      <span class="what"><b>Mischief</b><small>Monsters may take your cursor and damage the text.</small></span>
+      <label class="switch"><input type="checkbox" id="mischief"><span></span></label>
+    </div>
+
+    <label class="dial">
+      <span class="top"><b>How busy the sea is</b><output id="busy-out"></output></span>
+      <input type="range" id="busy" min="0" max="100" step="1">
+    </label>
+
+    <div class="pair">
+      <label>Hour
+        <select id="sky"><option value="auto">By your clock</option><option value="day">Day</option><option value="dusk">Dusk</option><option value="night">Night</option></select>
+      </label>
+      <label>Weather
+        <select id="weather"><option value="auto">Comes and goes</option><option value="clear">Clear</option><option value="swell">Swell</option><option value="rain">Rain</option><option value="fog">Fog</option><option value="storm">Storm</option></select>
+      </label>
+    </div>
+    <p id="now" class="hint"></p>
+
+    <div class="summon">
+      <select id="who" aria-label="Creature to summon"></select>
+      <button id="summon">Summon</button>
+    </div>
+
+    <button id="open" class="decree">Open the control centre</button>
+  </main>
+
+  <footer>
+    <span><kbd>Esc</kbd> ×3 stills the sea</span>
+    <span id="perf"></span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

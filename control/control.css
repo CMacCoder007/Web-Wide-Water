@@ -1,0 +1,54 @@
+/* Layout of the full control centre. The look itself is in theme.css. */
+.crown { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 40px 22px; border-bottom: 1px solid var(--bronze); background: linear-gradient(180deg, rgba(4, 17, 29, .9), rgba(4, 17, 29, .3)); }
+.crown .title { display: flex; align-items: center; gap: 16px; }
+.crown .trident { font-size: 54px; }
+.crown h1 { font-size: 28px; }
+.master { display: flex; align-items: center; gap: 16px; }
+.master .carved { font-size: 13px; }
+
+.shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; max-width: 1180px; margin: 0 auto; padding: 30px 40px 70px; }
+#nav { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 24px; align-self: start; }
+#nav button { text-align: left; border-radius: 10px; padding: 14px 16px; font-family: Georgia, serif; letter-spacing: .1em; text-transform: uppercase; font-size: 13.5px; border-color: var(--bronze); color: var(--mist); background: rgba(10, 36, 54, .5); }
+#nav button.on { color: #2a2009; background: linear-gradient(90deg, var(--gold), var(--gold-dim)); border-color: var(--gold); font-weight: 700; }
+#nav button.on:hover { color: #2a2009; }
+
+.tab > h2 { font-size: 22px; }
+.presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+.presets button { border-radius: 12px; padding: 16px; text-align: left; display: flex; flex-direction: column; gap: 4px; }
+.presets button b { font-family: Georgia, serif; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; }
+.presets button small { color: var(--mist); font-size: 12.5px; }
+.presets button:hover small { color: #3a2e10; }
+.chips-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chips-line button { padding: 5px 12px; font-size: 13px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 22px; color: var(--mist); font-size: 12.5px; margin-bottom: 8px; }
+.creature { display: grid; grid-template-columns: 54px minmax(130px, 1.1fr) minmax(160px, 2fr) 62px 140px; align-items: center; gap: 16px; padding: 9px 0; border-bottom: 1px solid rgba(159, 185, 194, .12); }
+.creature:last-child { border-bottom: 0; }
+.creature .name b { font-weight: 600; }
+.creature .name small { display: block; color: var(--gold-dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.creature output { color: var(--gold); font-variant-numeric: tabular-nums; font-size: 13.5px; text-align: right; }
+.creature.off .name, .creature.off input[type="range"], .creature.off output { opacity: .4; }
+.waters { display: flex; gap: 5px; }
+.chip { width: 30px; height: 30px; padding: 0; border-radius: 8px; font-weight: 700; font-size: 13px; border-color: rgba(159, 185, 194, .3); color: rgba(159, 185, 194, .5); background: transparent; }
+.chip.on { background: var(--tide); border-color: var(--sea); color: var(--foam); }
+
+.champion { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 26px; align-items: start; }
+.glass { position: sticky; top: 24px; }
+.glass h3 { margin-top: 0; }
+/* The preview is the real sea drawn at 60% size, so a whole pod or fleet fits in the window. */
+.porthole { height: 330px; overflow: hidden; border: 1px solid var(--gold-dim); border-radius: 12px; background: #1d6f93; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+#preview { width: 166.67%; height: 550px; border: 0; display: block; transform: scale(.6); transform-origin: 0 0; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.actions .lede { flex: 1; font-size: 13.5px; color: var(--gold); }
+.swatches { display: flex; align-items: flex-end; gap: 18px; padding: 10px 0; flex-wrap: wrap; }
+.swatches label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--mist); }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; padding: 20px; }
+  #nav { position: static; flex-direction: row; flex-wrap: wrap; }
+  .champion, .presets { grid-template-columns: 1fr; }
+  .glass { position: static; }
+  .creature { grid-template-columns: 54px 1fr 62px; }
+  .creature input[type="range"] { grid-column: 1 / -1; }
+  .crown { padding: 18px 20px; }
+}

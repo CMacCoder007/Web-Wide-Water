@@ -1,0 +1,7 @@
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, .16), transparent 55%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, .05) 0 18px, transparent 18px 46px),
+    linear-gradient(160deg, #2a8fb4, #1a6a8f 55%, #114c6c);
+}

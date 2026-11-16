@@ -1,0 +1,12 @@
+# OS and editor leftovers
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
+
+# packaged builds
+*.zip
+*.crx
+*.pem
