@@ -43,9 +43,26 @@
     </div>
     <p id="now" class="hint"></p>
 
-    <div class="summon">
-      <select id="who" aria-label="Creature to summon"></select>
-      <button id="summon">Summon</button>
+    <div id="champ-row" class="row" hidden>
+      <span class="what"><b>Champion follows my cursor</b><small>Or roams freely. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> on any page.</small></span>
+      <label class="switch"><input type="checkbox" id="follow"><span></span></label>
+    </div>
+
+    <h3 class="summon-title">Summon</h3>
+    <div class="summon" data-group="small">
+      <span class="tier">Small life</span>
+      <select aria-label="Small life to summon"></select>
+      <button>Summon</button>
+    </div>
+    <div class="summon" data-group="medium">
+      <span class="tier">Wildlife &amp; ships</span>
+      <select aria-label="Wildlife or ships to summon"></select>
+      <button>Summon</button>
+    </div>
+    <div class="summon" data-group="big">
+      <span class="tier">Monsters &amp; events</span>
+      <select aria-label="Monster or event to summon"></select>
+      <button>Summon</button>
     </div>
 
     <button id="open" class="decree">Open the control centre</button>

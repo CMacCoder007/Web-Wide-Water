@@ -26,7 +26,9 @@
   if (!Sea || Sea.scene) return;
 
   const LEAN_X = 0.14, LEAN_Y = 0.62;  // screen offset per px of height
-  const MIN_FRAME_MS = 14;             // never draw more than about 60 times a second
+  // Never draw more than about 60 times a second; 30 while you are typing or in
+  // the Smoothest performance setting, so the page gets the time back.
+  const minFrameMs = () => (Sea.typing || Sea.settings.perf === 'smooth' ? 31 : 14);
 
   const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   const CAM = norm([-LEAN_X, LEAN_Y, 1]);   // direction from the scene towards the viewer
@@ -47,8 +49,9 @@
         position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', pointerEvents: 'none'
       });
       ctx = cv.getContext('2d');
-      Sea.util.layer().appendChild(cv);
     }
+    // some sites rebuild the whole document; if our canvas was thrown out, put it back
+    if (!cv.isConnected) Sea.util.layer().appendChild(cv);
     // under load the canvas drops to one pixel per CSS pixel: a quarter of the fill work on sharp screens
     const want = Sea.perf && Sea.perf.level >= 2 ? 1 : Math.min(2, devicePixelRatio || 1);
     if (vw !== innerWidth || vh !== innerHeight || !cv.width || want !== dpr) {
@@ -214,52 +217,77 @@
     raf = 0;
     if (!cv) return;
     if (Sea.paused) { last = 0; return; }       // stop dead; resume() picks it up
-    if (last && now - last < MIN_FRAME_MS) { raf = Sea.raf(frame); return; }
+    if (last && now - last < minFrameMs()) { raf = Sea.raf(frame); return; }
     const t0 = performance.now();
     const t = now / 1000;
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
     if (last) stats.fps = stats.fps * 0.9 + (1000 / Math.max(1, now - last)) * 0.1;
     last = now;
 
+    // Every creature runs inside its own guard: one that goes wrong is removed
+    // quietly and everything else carries on (see fail() below).
     for (const e of ents) {
-      try { if (e.update) e.update(t, dt); } catch (err) { console.warn('[Web-Wide-Water] update failed', err); e.dead = true; }
+      if (e.update) { try { e.update(t, dt); } catch (err) { fail(e, err); } }
       if (e.dead) ents.delete(e);
     }
-    stepParticles(dt * 60);
+    try { stepParticles(dt * 60); } catch (err) { parts = []; }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, vw, vh);
     ctx.lineJoin = 'round';
-    try {
-      for (const e of ents) if (e.under) e.under(ctx, t);
-      drawSurfaceParticles();
-      for (const e of ents) if (e.shadow) e.shadow(ctx, t);
+    // flat 2D drawing gets a save/restore each, so a creature that fails half way
+    // through cannot leave the canvas turned, faded or blurred for the others
+    const flat = (e, fn) => {
+      if (!e[fn] || e.dead) return;
+      ctx.save();
+      try { e[fn](ctx, t); } catch (err) { fail(e, err); }
+      ctx.restore();
+    };
+    for (const e of ents) flat(e, 'under');
+    try { drawSurfaceParticles(); } catch (err) { parts = []; }
+    for (const e of ents) flat(e, 'shadow');
 
-      faces = [];
-      for (const e of ents) if (e.draw) e.draw(S, t);
-      pushAirParticles();
-      faces.sort((a, b) => a.depth - b.depth);
-      ctx.lineWidth = 0.7;
-      for (const f of faces) {
-        ctx.globalAlpha = f.alpha;
-        ctx.fillStyle = ctx.strokeStyle = f.css;
-        ctx.beginPath();
-        const a = f.flat;
-        ctx.moveTo(a[0], a[1]);
-        for (let i = 2; i < a.length; i += 2) ctx.lineTo(a[i], a[i + 1]);
-        ctx.closePath();
-        ctx.fill();
-        if (f.alpha === 1) ctx.stroke(); // seals hairline gaps between faces
-      }
-      ctx.globalAlpha = 1;
-      for (const e of ents) if (e.over) e.over(ctx, t);
-    } catch (err) { console.warn('[Web-Wide-Water] draw failed', err); }
+    faces = [];
+    for (const e of ents) {
+      if (!e.draw || e.dead) continue;
+      const n = faces.length;
+      try { e.draw(S, t); } catch (err) { faces.length = n; fail(e, err); }
+    }
+    try { pushAirParticles(); } catch (err) { parts = []; }
+    faces.sort((a, b) => a.depth - b.depth);
+    // The thin outline that seals hairline gaps doubles the drawing work, so it is
+    // dropped when the page is under strain.
+    const seal = !(Sea.perf && Sea.perf.level >= 2);
+    ctx.lineWidth = 0.7;
+    for (const f of faces) {
+      ctx.globalAlpha = f.alpha;
+      ctx.fillStyle = ctx.strokeStyle = f.css;
+      ctx.beginPath();
+      const a = f.flat;
+      ctx.moveTo(a[0], a[1]);
+      for (let i = 2; i < a.length; i += 2) ctx.lineTo(a[i], a[i + 1]);
+      ctx.closePath();
+      ctx.fill();
+      if (seal && f.alpha === 1) ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (const e of ents) flat(e, 'over');
 
     stats.faces = faces.length;
     stats.ms = stats.ms * 0.9 + (performance.now() - t0) * 0.1;
 
     if (ents.size || parts.length) ensure();
     else { cv.remove(); cv = ctx = null; vw = vh = 0; last = 0; stats.ms = 0; stats.faces = 0; }
+  }
+
+  // A creature that throws is taken out of the sea at once (the director notices
+  // and stops sending that kind if it keeps happening). One warning per page, not
+  // one per frame.
+  let warned = 0;
+  function fail(e, err) {
+    e.dead = true; e.failed = true;
+    if (warned++ < 3) console.warn('[Web-Wide-Water] a creature failed and was removed:', err);
   }
 
   // An elliptical shadow on the water, turned to match a heading.

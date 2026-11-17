@@ -8,7 +8,7 @@
   const DEFAULTS = {
     on: false, distortion: 35, busy: 65, offSites: [], off: [], click: true, scroll: true, cursor: true, wake: true,
     mischief: true, pauseBlur: true, mate: { kind: 'none' }, freq: {}, monsters: 100, splash: 100, wakeStrength: 100,
-    nightDark: 60, weatherMin: 3, regionMin: 5, region: 'auto', cast: {}, sky: 'auto', weather: 'auto'
+    nightDark: 60, weatherMin: 3, regionMin: 5, region: 'auto', cast: {}, sky: 'auto', weather: 'auto', perf: 'auto'
   };
   // keep in step with DEFAULTS in src/sea/mate.js
   const MATE = { kind: 'none', name: '', size: 100, count: 1, follow: 'cursor', hull: '#5a3a22', trim: '#c9a227', sail: '#f3ead2', flag: '#b3202a', masts: 2, emblem: 'none', stripes: false, guns: true, c1: '', c2: '', c3: '' };
@@ -197,6 +197,10 @@
     });
     $('save').addEventListener('click', () => { save({ mate: { ...draft } }); renderMate(); });
     $('revert').addEventListener('click', () => { draft = saved(); renderMate(); sendDraft(); });
+    $('keys').addEventListener('click', (e) => {
+      e.preventDefault();
+      try { chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); } catch (err) { /* only inside the extension */ }
+    });
 
     for (const b of all('[data-preset]')) b.addEventListener('click', () => save(PRESETS[b.dataset.preset]));
     $('reset').addEventListener('click', () => {
@@ -224,7 +228,15 @@
 
     if (real) chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
-      if (changes[KEY]) { settings = { ...DEFAULTS, ...(changes[KEY].newValue || {}) }; render(); renderMate(); }
+      if (changes[KEY]) {
+        // A change from elsewhere (the hotkey, the quick panel). Follow takes effect at
+        // once, so it is never shown as an unsaved change; nor is anything else if the
+        // champion had no unsaved edits.
+        const clean = !dirty();
+        settings = { ...DEFAULTS, ...(changes[KEY].newValue || {}) };
+        draft = clean ? saved() : { ...draft, follow: saved().follow };
+        render(); renderMate(); sendSoon();
+      }
       if (changes[CATALOG_KEY]) { catalog = changes[CATALOG_KEY].newValue || []; renderCreatures(); }
     });
 

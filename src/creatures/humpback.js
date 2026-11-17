@@ -103,9 +103,9 @@
     return (silhouette = p);
   }
 
-  function spawn() {
+  function spawn(opts = {}) {
     const model = Sea.models.once('humpback', build);
-    const start = Sea.world.entry(340);
+    const start = Sea.world.entry(opts.summoned ? 150 : 340);     // called up by hand, it is with you sooner
     const s = rand(0.9, 1.12);
     const w = {
       x: start.x, y: start.y, yaw: start.yaw, course: start.yaw, z: DEEP * s, pitch: 0, roll: 0,

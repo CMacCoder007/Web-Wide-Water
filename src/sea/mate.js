@@ -2,18 +2,26 @@
 // centre, or a pod of orcas, dolphins or turtles in your own colours. It lives
 // on every page while the sea is on.
 //
-// The first one follows your cursor (or roams by itself, your choice), stops a
-// little way off, and waits; the rest keep formation on it. Click anywhere and
-// the animals race over and leap there; ships fire a salute.
+// The first one follows your cursor, or roams the page by itself; the rest keep
+// formation on it. Alt+Shift+C switches between the two on any page (the key
+// can be changed at chrome://extensions/shortcuts). Click anywhere and the
+// animals race over and leap there; ships fire a salute.
 //
-// The rest of the sea treats them as its own:
-//   - wild dolphins come and ride alongside;
-//   - gulls follow a ship when there are no fish to dive on;
-//   - a shark will trail a ship for a while;
-//   - fish and seals flee from your orcas or dolphins, so you can herd them;
-//   - in mischief mode pirates fire on your ships (they fire back), and the
-//     kraken and megalodon may take one. A lost ship is replaced a few seconds
-//     later. With mischief off nothing can harm them.
+// How it moves, so that it glides rather than twitches:
+//   - it never chases the raw cursor: each member follows a smoothed target
+//     that eases after the cursor (or after its place in the formation);
+//   - it turns gradually, harder the further off course it is, and a ship
+//     needs way on to answer the helm;
+//   - it slows as it arrives, and once there it settles: ships hold position,
+//     animals swim slow lazy circles round the spot. It only sets off again when
+//     the target has moved well away, so small movements of the mouse leave it be;
+//   - while the leader is settled, the formation is laid out from where it
+//     settled, so the others settle too instead of chasing a turning leader.
+//
+// The rest of the sea treats it as its own: wild dolphins ride alongside, gulls
+// follow a ship, a shark trails it, fish and seals flee from your orcas or
+// dolphins, and in mischief mode pirates and monsters may come for your ships
+// (a lost ship is replaced a few seconds later).
 //
 //   Sea.mate.pos()   -> the leader { x, y, yaw, afloat }, or null
 //
@@ -21,7 +29,8 @@
 //                  count (ships 1-3, animals 1-7), follow: 'cursor' | 'roam',
 //                  ship:    hull, trim, sail, flag (hex colours), masts (1-3), emblem, stripes, guns
 //                  animals: c1, c2, c3 (hex colours; what each one paints depends on the animal) }
-// It only changes when the user presses Save in the control centre.
+// The design only changes when the user presses Save in the control centre;
+// 'follow' changes at once (the hotkey) without rebuilding anything.
 (() => {
   const Sea = window.Sea;
   if (!Sea || Sea.mate) return;
@@ -39,21 +48,61 @@
     const n = parseInt(m[1], 16);
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   };
+  const ease = (v) => { v = clamp(v, 0, 1); return v * v * (3 - 2 * v); };
+  const following = () => ((Sea.settings.mate || {}).follow || 'cursor') !== 'roam';
 
-  let group = [], sig = '', respawn = 0, moved = 0;
+  let group = [], sig = '', respawn = 0, lastFollow = null;
 
-  // Where it wants to be. The leader: near the cursor, or wandering. The others: their place in the formation.
-  function goal(m) {
-    if (m.lead) {
-      const L = m.lead, c = Math.cos(L.yaw), s = Math.sin(L.yaw), k = m.spread;
-      return [L.x + (m.slot[0] * c - m.slot[1] * s) * k, L.y + (m.slot[0] * s + m.slot[1] * c) * k];
+  // ---------- navigation, shared by ships and animals ----------
+  // Where a member would like to be, before smoothing.
+  function rawGoal(m) {
+    const L = m.lead;
+    if (L) {
+      const settled = L.mode === 'settled';
+      const ox = settled ? L.rest.x : L.x, oy = settled ? L.rest.y : L.y, h = settled ? L.restHdg : L.hdg;
+      const c = Math.cos(h), s = Math.sin(h), k = m.spread;
+      return [ox + (m.slot[0] * c - m.slot[1] * s) * k, oy + (m.slot[0] * s + m.slot[1] * c) * k];
     }
-    const cur = Sea.cursor, vw = innerWidth, vh = innerHeight;
-    if (m.opts.follow !== 'roam' && performance.now() - moved < 9000) return [cur.x, cur.y];
-    if (!m.wp || Math.hypot(m.wp[0] - m.x, m.wp[1] - m.y) < 90 || performance.now() > m.wpUntil) {
-      m.wp = [rand(0.14, 0.86) * vw, rand(0.18, 0.82) * vh]; m.wpUntil = performance.now() + 20000;
+    if (following()) return [Sea.cursor.x, Sea.cursor.y];
+    // roaming: make for a spot, rest there a few seconds, choose another
+    if (!m.wp || (m.mode === 'settled' && performance.now() > m.wpUntil)) {
+      m.wp = [rand(0.14, 0.86) * innerWidth, rand(0.18, 0.82) * innerHeight];
     }
     return m.wp;
+  }
+
+  // Ease the target after the goal, and the remembered heading after the actual one.
+  function track(m, dt) {
+    const g = rawGoal(m);
+    const a = 1 - Math.exp(-dt / (m.lead ? 0.4 : 0.3));
+    m.tx += (g[0] - m.tx) * a; m.ty += (g[1] - m.ty) * a;
+    m.hdg += turn(m.hdg, m.yaw) * (1 - Math.exp(-dt / 0.6));
+  }
+
+  // Travelling or settled, with a gap between the two so it does not flicker between them.
+  function mode(m, o) {
+    const d = Math.hypot(m.tx - m.x, m.ty - m.y);
+    if (m.mode === 'travel' && d < o.arrive) {
+      m.mode = 'settled';
+      m.rest = { x: m.tx, y: m.ty }; m.restHdg = m.hdg;
+      m.circ = Math.atan2(m.y - m.ty, m.x - m.tx);
+      if (!m.lead) m.wpUntil = performance.now() + rand(3000, 8000);
+    } else if (m.mode === 'settled' && Math.hypot(m.tx - m.rest.x, m.ty - m.rest.y) > o.leave) {
+      m.mode = 'travel';
+    }
+    return d;
+  }
+
+  // Turn towards a point (gradually) and ease the speed towards `want`.
+  function steer(m, ax, ay, want, dt, o) {
+    const k = dt * 60;
+    let rate = clamp(turn(m.yaw, Math.atan2(ay - m.y, ax - m.x)) * o.gain, -o.maxTurn, o.maxTurn);
+    if (o.ship) rate *= clamp(m.speed / 0.5, 0.25, 1);         // a ship needs way on to answer the helm
+    m.turnRate = rate;
+    m.yaw += rate * k + Sea.world.avoid(m.x, m.y, m.yaw, o.ship ? 90 : 80, true) * 0.6 * k;
+    const dv = want - m.speed;
+    m.speed += clamp(dv, -o.decel * k, o.accel * k);
+    m.x += Math.cos(m.yaw) * m.speed * k; m.y += Math.sin(m.yaw) * m.speed * k;
   }
 
   function nameTag(c, m, y) {
@@ -66,34 +115,46 @@
     c.fillText(m.opts.name, m.x, y + 10);
   }
 
+  // what every member starts with
+  const base = (start, lead, slot) => ({
+    lead, slot, x: start.x, y: start.y, yaw: start.yaw, hdg: start.yaw, tx: start.x, ty: start.y,
+    speed: 0, turnRate: 0, mode: 'travel', rest: null, restHdg: start.yaw, circ: 0, wp: null, wpUntil: 0,
+    dir: Math.random() < 0.5 ? 1 : -1, age: 0, salute: 0, afloat: true, dead: false
+  });
+
   // ---------- a ship ----------
   function makeShip(opts, model, start, lead, slot) {
     const size = clamp((Number(opts.size) || 100) / 100, 0.6, 1.6) * 1.15;
-    const m = {
-      kind: 'player', opts, model, size, lead, slot, spread: size,
-      x: start.x, y: start.y, vx: 0, vy: 0, yaw: start.yaw, roll: 0, kick: 0, speed: 0,
-      hp: 4, afloat: true, fighting: false, dead: false, age: 0, reload: rand(1, 3), mend: 0, wakeT: 0, wakeN: 0, ph: rand(0, 9), salute: 0,
+    const nav = lead
+      ? { ship: true, arrive: 16, leave: 60, slow: 140, max: 2.3, gain: 0.05, maxTurn: 0.026, accel: 0.022, decel: 0.03 }
+      : { ship: true, arrive: 80 * size, leave: 180 * size, slow: 160, max: 1.9, gain: 0.05, maxTurn: 0.024, accel: 0.02, decel: 0.03 };
+    const m = Object.assign(base(start, lead, slot), {
+      kind: 'player', opts, model, size, spread: size, vx: 0, vy: 0, roll: 0, kick: 0,
+      hp: 4, fighting: false, reload: rand(1, 3), mend: 0, wakeT: 0, wakeN: 0, ph: rand(0, 9),
       sinkBy() { Sea.ships.sink(this); },
 
       update(t, dt) {
         const k = dt * 60;
         this.age += dt;
-        const g = goal(this), d = Math.hypot(g[0] - this.x, g[1] - this.y);
-        // the first ship heaves to a little way off the cursor; the others close right up to their station
-        const cruise = clamp((d - (lead ? 12 : 70 * size)) / 130, 0, lead ? 2.3 : 1.9);
-        const want = cruise > 0.05 ? Math.atan2(g[1] - this.y, g[0] - this.x) : lead ? lead.yaw : this.yaw;
-        const tn = clamp(turn(this.yaw, want), -0.028, 0.028) * (cruise > 0.05 || lead ? 1 : 0) + Sea.world.avoid(this.x, this.y, this.yaw, 90, true) * 0.6;
-        this.yaw += tn * k;
-        this.speed += (cruise - this.speed) * 0.035 * k;
+        track(this, dt);
+        const d = mode(this, nav);
+        if (this.mode === 'travel') {
+          // slows as it comes up, but keeps steerage way until it is there
+          const want = Math.max(0.25, nav.max * ease((d - nav.arrive * 0.6) / nav.slow));
+          steer(this, this.tx, this.ty, want, dt, nav);
+        } else {
+          // hove to: the leader holds its heading, the others come round to match it
+          const h = !lead ? this.yaw : (lead.mode === 'settled' ? lead.restHdg : lead.hdg);
+          steer(this, this.x + Math.cos(h) * 100, this.y + Math.sin(h) * 100, 0, dt, nav);
+        }
         this.vx = Math.cos(this.yaw) * this.speed; this.vy = Math.sin(this.yaw) * this.speed;
-        this.x += this.vx * k; this.y += this.vy * k;
         Sea.ships.bump(this);          // ice and other ships are solid
         if (!this.afloat) return;
 
         const sl = Sea.water.slopeAt(this.x, this.y);
         this.kick *= Math.pow(0.93, k);
-        const lean = tn * 9 + Math.sin(t * 1.3 + this.ph) * 0.05 + this.kick + clamp((-sl.x * Math.sin(this.yaw) + sl.y * Math.cos(this.yaw)) * 0.5, -0.25, 0.25);
-        this.roll += (lean - this.roll) * 0.15 * k;
+        const lean = this.turnRate * 9 + Math.sin(t * 1.3 + this.ph) * 0.05 + this.kick + clamp((-sl.x * Math.sin(this.yaw) + sl.y * Math.cos(this.yaw)) * 0.5, -0.25, 0.25);
+        this.roll += (lean - this.roll) * 0.1 * k;
 
         // come alongside a castaway and he is saved
         const lost = Sea.castaway && !Sea.castaway.saved ? Sea.castaway : null;
@@ -139,48 +200,56 @@
         S.mesh(model.stern, pose); S.mesh(model.bow, pose);
       },
       over(c) { nameTag(c, this, this.y + 30 * size); }
-    };
+    });
     Sea.ships.add(m);
     return m;
   }
 
   // ---------- an orca, dolphin or turtle ----------
   function makeAnimal(opts, kit, model, start, lead, slot) {
-    const base = clamp((Number(opts.size) || 100) / 100, 0.6, 1.6);
-    const s = base * (lead ? rand(0.78, 0.98) : 1);        // the leader is the biggest
-    const m = {
-      kind: opts.kind, opts, lead, slot, spread: base * (opts.kind === 'orca' ? 1 : 0.8),
-      x: start.x, y: start.y, yaw: start.yaw, z: kit.cruise * s, pitch: 0, roll: 0, phase: rand(0, 6), speed: 0,
-      afloat: true, dead: false, age: 0, leap: -1, leapTo: null, surf: 0, wakeT: 0, orbit: rand(0, 6), salute: 0,
+    const size = clamp((Number(opts.size) || 100) / 100, 0.6, 1.6);
+    const s = size * (lead ? rand(0.78, 0.98) : 1);        // the leader is the biggest
+    const nav = lead
+      ? { arrive: 26 * s, leave: 64 * s, slow: 120, max: kit.speed * 1.35, idle: kit.speed * 0.32, ring: 28 * s, gain: 0.07, maxTurn: 0.05, accel: 0.03, decel: 0.04 }
+      : { arrive: 75 * s, leave: 170 * s, slow: 170, max: kit.speed, idle: kit.speed * 0.32, ring: 55 * s, gain: 0.07, maxTurn: 0.05, accel: 0.03, decel: 0.04 };
+    const m = Object.assign(base(start, lead, slot), {
+      kind: opts.kind, opts, spread: size * (opts.kind === 'orca' ? 1 : 0.8),
+      z: kit.cruise * s, pitch: 0, roll: 0, phase: rand(0, 6), leap: -1, leapTo: null, surf: 0, wakeT: 0,
 
       update(t, dt) {
         const k = dt * 60;
-        this.age += dt; this.orbit += dt * 0.8;
-        let g = goal(this);
-        if (this.leapTo) g = this.leapTo;
-        let d = Math.hypot(g[0] - this.x, g[1] - this.y);
-        // close to the cursor the leader circles instead of stopping dead: animals don't hover
-        if (!lead && !this.leapTo && d < 80 * s) { g = [g[0] + Math.cos(this.orbit) * 70 * s, g[1] + Math.sin(this.orbit) * 70 * s]; d = 60; }
-        // in formation: aim a little ahead of the slot, so it joins the line instead of circling it
-        if (lead && !this.leapTo) g = [g[0] + Math.cos(lead.yaw) * 50, g[1] + Math.sin(lead.yaw) * 50];
-        this.yaw += clamp(turn(this.yaw, Math.atan2(g[1] - this.y, g[0] - this.x)), -0.06, 0.06) * k + Sea.world.avoid(this.x, this.y, this.yaw, 80, true) * 0.6 * k;
-        const want = lead && !this.leapTo ? clamp(lead.speed * (0.8 + d / 160), 0.3, kit.speed * 1.7) : kit.speed * clamp(d / 160, 0.45, this.leapTo ? 1.9 : 1.4);
-        this.speed += (want - this.speed) * 0.06 * k;
-        const fx = Math.cos(this.yaw), fy = Math.sin(this.yaw);
-        this.x += fx * this.speed * k; this.y += fy * this.speed * k;
-        this.phase += dt * (3 + this.speed * 2.4);
+        this.age += dt;
+        track(this, dt);
 
         // a click: they race over and leap there (turtles come up for a look instead)
         if (this.salute) {
           const at = this.salute; this.salute = 0;
-          if (kit.leap) this.leapTo = [at[0] + rand(-40, 40) * (lead ? 1 : 0), at[1] + rand(-40, 40) * (lead ? 1 : 0)];
+          if (kit.leap) this.leapTo = [at[0] + (lead ? rand(-40, 40) : 0), at[1] + (lead ? rand(-40, 40) : 0)];
           else { this.surf = 2; Sea.scene.emit({ k: 'ring', x: this.x, y: this.y, life: 30, size: 6, grow: 24 }); }
         }
-        if (this.leapTo && this.leap < 0 && d < 90 * s) {
-          this.leap = 0; this.leapTo = null;
-          Sea.water.splash(this.x, this.y, kit.leap.splash * 0.6 * s, 1.6);
-          Sea.scene.burst('spray', this.x, this.y, 3, 10, { speed: 1.6, up: 3.4, life: 36, size: 2 });
+
+        if (this.leapTo) {
+          const d = Math.hypot(this.leapTo[0] - this.x, this.leapTo[1] - this.y);
+          steer(this, this.leapTo[0], this.leapTo[1], kit.speed * 1.8, dt, nav);
+          if (this.leap < 0 && d < 90 * s) {
+            this.leap = 0; this.leapTo = null; this.mode = 'travel';
+            Sea.water.splash(this.x, this.y, kit.leap.splash * 0.6 * s, 1.6);
+            Sea.scene.burst('spray', this.x, this.y, 3, 10, { speed: 1.6, up: 3.4, life: 36, size: 2 });
+          }
+        } else {
+          const d = mode(this, nav);
+          if (this.mode === 'travel') {
+            steer(this, this.tx, this.ty, Math.max(nav.idle, nav.max * ease((d - nav.arrive * 0.6) / nav.slow)), dt, nav);
+          } else {
+            // settled: slow lazy circles round the spot, aiming a little ahead on the circle
+            this.circ += this.dir * nav.idle * k / nav.ring;
+            const a = this.circ + this.dir * 0.7;
+            steer(this, this.rest.x + Math.cos(a) * nav.ring, this.rest.y + Math.sin(a) * nav.ring, nav.idle, dt, nav);
+          }
         }
+        const fx = Math.cos(this.yaw), fy = Math.sin(this.yaw);
+        this.phase += dt * (3 + this.speed * 2.4);
+
         if (this.leap >= 0) {
           this.leap += dt / kit.leap.t;
           const p = Math.min(1, this.leap);
@@ -197,7 +266,9 @@
         } else {
           this.surf -= dt;
           this.z += ((this.surf > 0 ? 1 : kit.cruise) * s - this.z) * 0.08 * k;
-          this.pitch += ((this.surf > 0 ? 0.3 : 0) - this.pitch) * 0.1 * k; this.roll *= Math.pow(0.85, k);
+          // a gentle bank into turns, eased so it never snaps
+          this.pitch += ((this.surf > 0 ? 0.3 : 0) - this.pitch) * 0.1 * k;
+          this.roll += (clamp(-this.turnRate * 6, -0.35, 0.35) - this.roll) * 0.08 * k;
           if ((this.wakeT += dt) > 0.12 && this.speed > 0.4) {
             this.wakeT = 0;
             Sea.scene.emit({ k: 'foam', x: this.x - fx * 12 * s + rand(-3, 3), y: this.y - fy * 12 * s + rand(-3, 3), life: 30, size: rand(1.2, 3) * s });
@@ -207,17 +278,15 @@
       },
       under(c) {
         if (this.z > 8) return;
-        c.save();
         c.translate(this.x + 2, this.y + 4); c.rotate(this.yaw); c.scale(s, s);
         c.fillStyle = 'rgba(8,22,44,.4)';
         if (kit.outline) c.fill(kit.outline());
         else { c.beginPath(); c.ellipse(0, 0, 20, 15, 0, 0, 6.283); c.fill(); }
-        c.restore();
       },
       shadow(c) { if (this.z > 4) Sea.scene.blobShadow(c, this.x, this.y, this.yaw, 40 * s, 10 * s, 0.2); },
       draw(S) { S.mesh(model, { x: this.x, y: this.y, z: this.z, yaw: this.yaw, pitch: this.pitch, roll: this.roll, s }, { deform: kit.flex(this.phase) }); },
       over(c) { nameTag(c, this, this.y + 26 * s); }
-    };
+    });
     if (kit.hunter) Sea.eco.hunters.add(m);
     return m;
   }
@@ -258,6 +327,20 @@
     for (const m of group) Sea.scene.add(m);
   }
 
+  // a word on the water when the hotkey changes what it does
+  function announce(text) {
+    const L = group[0];
+    if (!L || L.dead) return;
+    const tag = Sea.util.el('div', {
+      position: 'absolute', left: clamp(L.x - 70, 8, innerWidth - 150) + 'px', top: clamp(L.y - 56, 8, innerHeight - 40) + 'px',
+      padding: '4px 12px', borderRadius: '3px', pointerEvents: 'none', whiteSpace: 'nowrap',
+      background: 'rgba(240,226,190,.95)', color: '#3b2a1a', border: '1px solid rgba(90,60,30,.55)', font: 'italic 600 13px Georgia, serif'
+    }, text);
+    Sea.util.layer().appendChild(tag);
+    try { tag.animate([{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 2200 }).onfinish = () => tag.remove(); }
+    catch (e) { setTimeout(() => tag.remove(), 2200); }
+  }
+
   // anything lost (a ship sunk) is replaced a few seconds later, the whole company sailing in again
   let watch = 0;
   function check() {
@@ -266,7 +349,6 @@
     if (respawn && performance.now() > respawn) { respawn = 0; launch(); }
   }
 
-  const onMove = () => { moved = performance.now(); };
   function onDown(e) {
     if (e.button !== 0) return;
     for (const m of group) if (!m.dead) m.salute = [e.clientX, e.clientY];
@@ -281,20 +363,23 @@
   Sea.feature({
     id: 'mate',
     start() {
-      sig = '';
-      window.addEventListener('pointermove', onMove, { passive: true, capture: true });
+      sig = ''; lastFollow = null;
       window.addEventListener('pointerdown', onDown, { passive: true, capture: true });
-      watch = setInterval(check, 1000);
+      watch = setInterval(() => { try { check(); } catch (e) { /* try again next second */ } }, 1000);
     },
     stop() {
-      window.removeEventListener('pointermove', onMove, { capture: true });
       window.removeEventListener('pointerdown', onDown, { capture: true });
       clearInterval(watch);
       group = []; sig = ''; respawn = 0;
     },
-    // rebuild only when the design itself changed, not on every settings change
+    // Rebuild only when the design itself changed. Switching follow on or off
+    // (the hotkey) just changes where it heads, and says so.
     onSettings(s) {
-      const next = JSON.stringify(s.mate || {});
+      const { follow, ...design } = s.mate || {};
+      const f = follow || 'cursor';
+      if (lastFollow && f !== lastFollow && group.length) announce(f === 'roam' ? 'Roaming free' : 'Following you');
+      lastFollow = f;
+      const next = JSON.stringify(design);
       if (next === sig) return;
       sig = next; respawn = 0;
       launch();

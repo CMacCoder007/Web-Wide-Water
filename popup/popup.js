@@ -3,20 +3,32 @@
 // doing?" and "summon this now". Everything else is in the control centre.
 (() => {
   const KEY = 'sea', CATALOG_KEY = 'seaCatalog';
-  const DEFAULTS = { on: false, busy: 65, offSites: [], mischief: true, sky: 'auto', weather: 'auto' };
+  const DEFAULTS = { on: false, busy: 65, offSites: [], mischief: true, sky: 'auto', weather: 'auto', mate: { kind: 'none' } };
   const REGIONS = { tropical: 'Coral Shallows', open: 'The Open Blue', north: 'The Cold North', south: 'The Frozen South' };
   const $ = (id) => document.getElementById(id);
+  // the three summon menus, by the kind each creature declares
+  const GROUPS = { small: ['small'], medium: ['ambient'], big: ['event', 'monster'] };
+  const PICKS_KEY = 'seaSummonPicks';      // the last thing chosen in each menu, kept between visits
 
   let settings = { ...DEFAULTS }, catalog = [], tabId = null, info = null;
 
   // Only ever write the keys this panel owns, on top of whatever is stored, so
   // settings made in the control centre are never lost from here.
   async function save(patch) {
+    // the champion's follow switch is one field inside the champion's design: keep the rest
+    if (patch.mate) patch = { ...patch, mate: { ...(settings.mate || {}), ...patch.mate } };
     settings = { ...settings, ...patch };
-    const got = await chrome.storage.local.get(KEY);
-    await chrome.storage.local.set({ [KEY]: { ...(got[KEY] || {}), ...patch } });
     render();
+    try {
+      const got = await chrome.storage.local.get(KEY);
+      const stored = got[KEY] || {};
+      if (patch.mate) patch = { ...patch, mate: { ...(stored.mate || {}), ...patch.mate } };
+      await chrome.storage.local.set({ [KEY]: { ...stored, ...patch } });
+    } catch (e) { /* the extension was reloaded: this panel is stale, and closing it fixes that */ }
   }
+
+  const picks = () => { try { return JSON.parse(localStorage.getItem(PICKS_KEY)) || {}; } catch (e) { return {}; } };
+  const remember = (group, id) => { try { localStorage.setItem(PICKS_KEY, JSON.stringify({ ...picks(), [group]: id })); } catch (e) { /* not kept */ } };
 
   async function ask(message) {
     if (tabId == null) return null;
@@ -47,16 +59,41 @@
     if (host) { $('host').textContent = host; $('site').checked = !(settings.offSites || []).includes(host); }
     $('status').textContent = !settings.on ? 'The sea sleeps'
       : host && (settings.offSites || []).includes(host) ? 'Stilled on this site' : 'The sea is risen';
-    $('summon').disabled = !(info && info.active);
-    $('summon').title = $('summon').disabled ? 'Raise the sea on this page first' : 'Make it appear now';
+    const live = !!(info && info.active);
+    for (const b of document.querySelectorAll('.summon button')) {
+      b.disabled = !live;
+      b.title = live ? 'Make it appear now' : 'Raise the sea on this page first';
+    }
+    const mate = settings.mate || {};
+    $('champ-row').hidden = !mate.kind || mate.kind === 'none';
+    $('follow').checked = mate.follow !== 'roam';
     showNow();
   }
 
   function fillSummon() {
-    const sel = $('who'), keep = sel.value;
-    sel.textContent = '';
-    for (const c of catalog) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.append(o); }
-    if (keep) sel.value = keep;
+    const chosen = picks();
+    for (const row of document.querySelectorAll('.summon')) {
+      const group = row.dataset.group, sel = row.querySelector('select');
+      const keep = sel.value || chosen[group];
+      sel.textContent = '';
+      for (const c of catalog.filter((c) => GROUPS[group].includes(c.kind))) {
+        const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.append(o);
+      }
+      if (keep && [...sel.options].some((o) => o.value === keep)) sel.value = keep;
+      row.hidden = !sel.options.length;
+    }
+  }
+
+  async function summon(row) {
+    const sel = row.querySelector('select'), btn = row.querySelector('button');
+    if (!sel.value) return;
+    remember(row.dataset.group, sel.value);
+    const res = await ask({ type: 'sea:summon', id: sel.value });
+    const ok = !!(res && res.ok);
+    btn.textContent = ok ? 'Summoned' : 'Not now';
+    btn.title = ok ? '' : 'One is already here, or the sea is not running on this page';
+    btn.classList.toggle('done', ok); btn.classList.toggle('nope', !ok);
+    setTimeout(() => { btn.textContent = 'Summon'; btn.classList.remove('done', 'nope'); }, 1600);
   }
 
   async function init() {
@@ -82,7 +119,11 @@
       if (!e.target.checked) offSites.push(host);
       save({ offSites });
     });
-    $('summon').addEventListener('click', () => ask({ type: 'sea:summon', id: $('who').value }));
+    for (const row of document.querySelectorAll('.summon')) {
+      row.querySelector('button').addEventListener('click', () => summon(row));
+      row.querySelector('select').addEventListener('change', (e) => remember(row.dataset.group, e.target.value));
+    }
+    $('follow').addEventListener('change', (e) => save({ mate: { follow: e.target.checked ? 'cursor' : 'roam' } }));
     $('open').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
     chrome.storage.onChanged.addListener((changes, area) => {

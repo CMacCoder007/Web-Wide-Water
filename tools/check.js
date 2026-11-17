@@ -39,6 +39,7 @@ const named = [
   ...manifest.content_scripts.flatMap((c) => c.js || []),
   manifest.action && manifest.action.default_popup,
   manifest.options_ui && manifest.options_ui.page,
+  manifest.background && manifest.background.service_worker,
   ...Object.values(manifest.icons || {}),
   ...Object.values((manifest.action && manifest.action.default_icon) || {})
 ].filter(Boolean);
@@ -55,6 +56,7 @@ for (const f of files.filter((p) => p.endsWith('.html'))) {
 
 // 3. no script in src/ is left out of the manifest
 const loaded = new Set(manifest.content_scripts.flatMap((c) => c.js || []));
+if (manifest.background && manifest.background.service_worker) loaded.add(manifest.background.service_worker);
 for (const f of scripts.map(rel)) if (f.startsWith('src/') && !loaded.has(f)) problems.push(`${f} exists but is not in manifest.json, so it never runs`);
 
 if (problems.length) {

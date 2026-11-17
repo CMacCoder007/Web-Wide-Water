@@ -45,12 +45,16 @@
     if (sky === 'day') return 0;
     if (sky === 'dusk') return 0.5;
     if (sky === 'night') return 1;
+    // many creatures ask every frame; the clock is only read once every few seconds
+    const now = performance.now();
+    if (now - clockAt < 5000) return clockNight;
+    clockAt = now;
     const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
-    if (h >= 21 || h < 5) return 1;          // dusk 19:00-21:00, dawn 05:00-07:00
-    if (h >= 19) return (h - 19) / 2;
-    if (h < 7) return 1 - (h - 5) / 2;
-    return 0;
+    // dusk 19:00-21:00, dawn 05:00-07:00
+    clockNight = h >= 21 || h < 5 ? 1 : h >= 19 ? (h - 19) / 2 : h < 7 ? 1 - (h - 5) / 2 : 0;
+    return clockNight;
   }
+  let clockAt = -1e9, clockNight = 0;
   function weather() {
     if (omen) return omen;                 // something terrible is coming up: the sky answers
     if (forced.weather) return forced.weather;
@@ -238,7 +242,7 @@
       layer.append(label);
       try { fog.animate([{ transform: 'translate(-6%, -3%)' }, { transform: 'translate(6%, 3%)' }], { duration: 40000, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' }); } catch (e) { /* no animation */ }
       lastRegion = lastWeather = null;
-      timer = setInterval(tick, 250);
+      timer = setInterval(() => { try { tick(); } catch (e) { /* the weather can wait a moment */ } }, 250);
     },
     stop() {
       clearInterval(timer); clearTimeout(labelTimer);

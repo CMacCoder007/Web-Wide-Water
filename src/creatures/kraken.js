@@ -157,6 +157,10 @@
     const [hunter, wrecker, slapper] = tents;
     let phase = 'rise', age = 0, shake = 0, under = 0, loom = 0;
     const setPhase = (p) => { phase = p; age = 0; };
+    // A kraken always takes a ship. If there is none on the page, one sails into
+    // its reach, and it waits for it (up to half a minute).
+    const brought = Sea.ships && !Sea.ships.afloat().length ? Sea.ships.muster('merchant', 1, false).ships[0] : null;
+    const waiting = () => brought && brought.afloat && age < 30;
     const offDelta = Sea.cursor.onDelta((dx, dy) => { if (phase === 'hold') shake += Math.abs(dx) + Math.abs(dy); });
 
     Sea.water.splash(cx, cy, 170, -4.5);
@@ -176,7 +180,9 @@
 
         if (phase === 'rise' || phase === 'hunt') {
           // the wrecker: find a ship, wrap it, break it
-          const prey = phase === 'hunt' && Sea.ships ? Sea.ships.afloat()[0] : null;
+          // a tentacle has a reach: it takes the nearest ship that comes within it
+          let prey = null, pd = 430;
+          if (phase === 'hunt' && Sea.ships) for (const s of Sea.ships.afloat()) { const q = Math.hypot(s.x - cx, s.y - cy); if (q < pd) { pd = q; prey = s; } }
           if (prey) {
             wrecker.tz = 6;
             if (chase(wrecker, prey.x, prey.y, 4.6 * k) < 16) {
@@ -215,7 +221,7 @@
             hunter.tz = 60;
             chase(hunter, hunter.bx + Math.cos(t * 0.6) * 130, hunter.by - 30 + Math.sin(t * 0.8) * 90, 4 * k);
           }
-          if (phase === 'hunt' && age > HUNT_S) { squirt(cx, cy); setPhase('retreat'); }   // gives up, and inks anyway
+          if (phase === 'hunt' && age > HUNT_S && !waiting()) { squirt(cx, cy); setPhase('retreat'); }   // done (or gives up), and inks
         } else if (phase === 'hold') {
           // lift the prize high and wave it about
           hunter.tz = 110;

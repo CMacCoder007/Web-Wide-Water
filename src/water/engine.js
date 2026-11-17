@@ -121,7 +121,7 @@
     const t0 = performance.now();
     const energy = step();
     const frame = { h: cur, W, H, cell: CELL };
-    for (const fn of frameFns) fn(frame);
+    for (const fn of frameFns) { try { fn(frame); } catch (e) { console.warn('[Web-Wide-Water] water frame failed', e); } }
     stats.ms = stats.ms * 0.9 + (performance.now() - t0) * 0.1;
     if (lastT) stats.fps = stats.fps * 0.9 + (1000 / Math.max(1, now - lastT)) * 0.1;
     lastT = now;
@@ -131,7 +131,7 @@
       // Flat water: stop burning frames and let the page render untouched.
       cur.fill(0); prev.fill(0);
       stats.awake = false; lastT = 0; raf = 0;
-      for (const fn of sleepFns) fn();
+      for (const fn of sleepFns) { try { fn(); } catch (e) { /* keep sleeping */ } }
       return;
     }
     raf = Sea.raf(loop);

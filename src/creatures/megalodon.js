@@ -97,17 +97,26 @@
     const { el } = Sea.util;
     const vw = innerWidth, vh = innerHeight;
     const ship0 = Sea.ships ? Sea.ships.afloat()[0] : null;
-    // what it is after
-    let hunt = Sea.settings.mischief && (!ship0 || Math.random() < 0.6) ? 'cursor' : ship0 ? 'ship' : 'none';
-    let prey = hunt === 'ship' ? ship0 : null;
+    // What it is after. With mischief on it may come for your cursor. Otherwise it
+    // goes for a ship, and if there is none on the page one sails in for it, so a
+    // megalodon always ends in a bite.
+    let hunt = Sea.settings.mischief && (!ship0 || Math.random() < 0.6) ? 'cursor' : 'ship';
+    let prey = hunt === 'ship' ? ship0 : null, waiting = false;
+    if (hunt === 'ship' && !prey && Sea.ships) { prey = Sea.ships.muster('merchant', 1, false).ships[0]; waiting = true; }
+    if (hunt === 'ship' && !prey) hunt = 'none';
     const aim = () => (hunt === 'cursor' ? Sea.cursor : hunt === 'ship' && prey ? prey : { x: vw / 2, y: vh / 2 });
 
     // start off-screen, on a line through the target
-    const a0 = rand(0, 6.283), R = Math.hypot(vw, vh) * 0.62 + 220, p0 = aim();
+    const R = Math.hypot(vw, vh) * 0.62 + 220;
+    let a0 = rand(0, 6.283);
+    const from = (p) => ({ x: p.x + Math.cos(a0) * R, y: p.y + Math.sin(a0) * R });
+    for (let i = 0, p = aim(); i < 16 && !Sea.world.gone(from(p).x, from(p).y, 120); i++) a0 = rand(0, 6.283);
+    const p0 = from(aim());
     const sh = {
-      x: p0.x + Math.cos(a0) * R, y: p0.y + Math.sin(a0) * R,
-      yaw: a0 + Math.PI, z: CRUISE_Z, pitch: 0, jaw: 0,
-      state: 'approach', speed: 5.2, pull: 0, eaten: 0, tick: 0, committed: false, closest: 1e9, shake: 0, showT: 0
+      x: p0.x, y: p0.y,
+      yaw: a0 + Math.PI, z: CRUISE_Z, pitch: 0, jaw: 0, wait: 0,
+      // 'wait': lying deep off the page until the ship it was sent has come into view
+      state: waiting ? 'wait' : 'approach', speed: 5.2, pull: 0, eaten: 0, tick: 0, committed: false, closest: 1e9, shake: 0, showT: 0
     };
 
     const label = el('div', {
@@ -149,6 +158,14 @@
       update(t, dt) {
         const k = dt * 60, vw = innerWidth, vh = innerHeight;
         const ap = (r) => 1 - Math.pow(1 - r, k);
+        if (sh.state === 'wait') {
+          // keep station off the page, lined up on the ship, until it is well into view
+          sh.wait += dt;
+          const p = from(prey);
+          sh.x = p.x; sh.y = p.y; sh.yaw = a0 + Math.PI;
+          if (!prey.afloat || !Sea.world.gone(prey.x, prey.y, -140) || sh.wait > 15) sh.state = 'approach';
+          return;
+        }
         sh.tick += k;
         swayT = t * (sh.state === 'hold' ? 9 : 6.5);
         const fx = Math.cos(sh.yaw), fy = Math.sin(sh.yaw);

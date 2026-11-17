@@ -70,6 +70,11 @@
         // he waves both arms when a ship is close enough to see him
         const ship = !r.saved && Sea.ships ? Sea.ships.all.find((s) => s.afloat && s.kind !== 'pirate' && Math.hypot(s.x - r.x, s.y - r.y) < 420) : null;
         r.wave += ((ship ? 1 : 0) - r.wave) * 0.05 * k;
+        // nobody coming? after 15 seconds an honest merchantman sights him and alters course
+        if (!r.saved && !r.called && r.age > 15 && Sea.ships && !Sea.world.gone(r.x, r.y, 0)) {
+          const honest = Sea.ships.all.some((s) => s.afloat && !s.fighting && s.kind !== 'pirate' && s.kind !== 'ghost');
+          if (!honest) { r.called = true; Sea.ships.muster('merchant', 1, false); }
+        }
         if (r.saved) r.sink += dt;
         if (Math.random() < 0.03 * k && !Sea.world.gone(r.x, r.y, 20)) Sea.water.splash(r.x, r.y, 20, -0.25);
         if (r.sink > 9 || (r.age > 8 && Sea.world.gone(r.x, r.y, 80))) { this.dead = true; if (Sea.castaway === r) Sea.castaway = null; }

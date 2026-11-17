@@ -45,6 +45,10 @@ Food web calls (see the top of `src/sea/eco.js`):
 | `Sea.eco.groups.add(group)` | Register your own prey group (see the jellyfish and seals). |
 | `Sea.eco.region()`, `Sea.eco.night()`, `Sea.eco.weather()` | Where and when it is, if your creature should behave differently. |
 
+`spawn(opts)` gets `opts.summoned = true` when the user called it up by hand. Use it to arrive sooner or to
+bring along whatever the event needs (the megalodon and kraken send for a ship); a summoned creature is never
+sent away by the load governor or by a change of waters. Return `null` if it cannot come right now.
+
 ## 2. The entity
 
 `spawn()` returns one object. A group (a pod, a school) is still one entity that looks after its members.

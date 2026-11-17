@@ -34,6 +34,7 @@
     region: 'auto',   // 'auto' drifts between regions, or 'tropical' | 'open' | 'north' pins one
     cast: {},         // the user's edits to who lives where: { north: { seal: false, turtle: true } }
     pauseBlur: true,  // also pause when the window has been in the background for 20 seconds
+    perf: 'auto',     // 'auto' trades detail for speed when the page strains, 'smooth' always runs light, 'full' never holds back
     mate: { kind: 'none' },   // your own ship or animals: see src/sea/mate.js
     freq: {},         // how often each creature appears, as a percentage of normal: { orca: 150, kraken: 0 }
     monsters: 100,    // how often the megalodon, the kraken and sea battles turn up, % of normal
@@ -113,6 +114,7 @@
       const v = Number(s[key]);
       s[key] = util.clamp(Number.isFinite(v) ? v : DEFAULTS[key], lo, hi);
     }
+    if (!['auto', 'smooth', 'full'].includes(s.perf)) s.perf = 'auto';
     delete s.floor; delete s.treasure; delete s.sound; delete s.volume;   // features that were removed
     // settings saved by an earlier version used on/off switches for these two
     if (s.weather === true) s.weather = 'auto'; else if (s.weather === false) s.weather = 'clear';
@@ -168,11 +170,20 @@
   function onBlur() { clearTimeout(blurTimer); blurTimer = setTimeout(() => { away = true; checkPause(); }, BLUR_GRACE_MS); }
   function onFocus() { clearTimeout(blurTimer); away = false; checkPause(); }
 
+  // Typing: while you type into anything on the page (a search box, an email, a
+  // document), the water stops bending the page and the sea draws at half rate, so
+  // every keystroke gets the browser's full attention. It picks up again a moment
+  // after you stop.
+  let typingUntil = 0;
+  const editable = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
   // Panic: Esc three times within about a second. We only listen; the key still
   // reaches the page as normal.
   let escTimes = [];
   function onKey(e) {
-    if (e.key !== 'Escape' || !active) return;
+    if (!active) return;
+    if (editable(e.target) || editable(document.activeElement)) typingUntil = performance.now() + 1500;
+    if (e.key !== 'Escape') return;
     const now = performance.now();
     escTimes = escTimes.filter((t) => now - t < 1200).concat(now);
     if (escTimes.length >= 3) { escTimes = []; set({ on: false }); }
@@ -189,6 +200,7 @@
   Object.defineProperty(Sea, 'settings', { get: () => settings });
   Object.defineProperty(Sea, 'active', { get: () => active });
   Object.defineProperty(Sea, 'paused', { get: () => paused });
+  Object.defineProperty(Sea, 'typing', { get: () => performance.now() < typingUntil });
 
   Sea.stats = () => ({
     waterMs: +Sea.water.stats.ms.toFixed(2),
@@ -213,8 +225,10 @@
         });
         chrome.runtime.onMessage.addListener((msg, sender, reply) => {
           if (!msg) return;
-          if (msg.type === 'sea:info') reply({ host: location.hostname, active, stats: active ? Sea.stats() : null, region: Sea.eco.region(), weather: Sea.eco.weather(), night: Sea.eco.night() });
-          else if (msg.type === 'sea:summon') reply({ ok: active && Sea.world.summon(msg.id) });
+          try {
+            if (msg.type === 'sea:info') reply({ host: location.hostname, active, stats: active ? Sea.stats() : null, region: Sea.eco.region(), weather: Sea.eco.weather(), night: Sea.eco.night() });
+            else if (msg.type === 'sea:summon') reply({ ok: active && Sea.world.summon(msg.id) });
+          } catch (e) { reply({ ok: false, error: String(e && e.message || e) }); }
         });
         const got = await store.get([KEY, CATALOG_KEY]);
         saved = got[KEY];

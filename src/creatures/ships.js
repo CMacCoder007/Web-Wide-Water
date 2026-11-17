@@ -382,10 +382,13 @@
     remove(s) { ships = ships.filter((o) => o !== s); },
     fire, sink, nearest, bump,
     // bring in ships of one flag, fighting or not, as one entity (the ghost ship calls up its own opposition)
+    // (the returned entity's .ships are the ships themselves, for whoever sent for them)
     muster(kind, count, fighting) {
       const list = [];
       for (let i = 0; i < count; i++) list.push(makeShip(kind, fighting));
-      return Sea.scene.add(group(list));
+      const g = group(list);
+      g.ships = list;
+      return Sea.scene.add(g);
     }
   };
 

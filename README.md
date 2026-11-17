@@ -69,19 +69,37 @@ colours. It follows your cursor on every page, wild dolphins ride beside it, and
 monsters may come for it. It is built in the control centre, with a live preview, and only changes when you
 press Save.
 
+Press **Alt+Shift+C** on any page to switch it between following your cursor and roaming freely (change the
+key at `chrome://extensions/shortcuts`). It eases after the cursor, slows as it arrives and then settles:
+ships hold position, animals swim slow circles, so small movements of the mouse leave it be.
+
 ### Controls
 
-- The toolbar button opens a **quick panel**: on/off, this site, mischief, how busy, hour, weather, summon.
+- The toolbar button opens a **quick panel**: on/off, this site, mischief, how busy, hour, weather, your
+  champion's follow switch, and three summon menus (small life, wildlife and ships, monsters and events) that
+  remember what you last picked.
 - **Open the control centre** for everything else: moods in one click, how often each creature appears and
   which waters it lives in, monster frequency, splash and wake strength, night darkness, how long regions
   and weather last, and your champion.
 
 ### Staying out of the way
 
+- **Performance** (in the control centre): Auto adapts by itself; Smoothest always runs light at 30 frames a
+  second; Full detail never holds back.
+- While you type into anything on a page, the water stops bending it and the sea draws at half rate.
+- The bend only covers the part of the page where the water is actually moving.
 - The sea stops completely when its tab is hidden or the window is covered, and (optionally) 20 seconds after
   you switch to another window.
 - It watches its own frame time. If the page starts to slow, it redraws the water less often, then stops new
-  arrivals, then asks animals to leave until things recover.
+  arrivals, then asks ordinary wildlife to leave until things recover. It never sends away something you
+  summoned, or a big event or monster that is under way.
+- A creature that hits an error is removed on the spot, and that kind is stood down for the rest of the visit
+  to the page if it happens twice; the rest of the sea carries on.
+
+### Summoned events always play out
+
+A megalodon or kraken with nothing to attack brings its own target: a merchant ship sails in. A castaway
+nobody has found after 15 seconds is sighted by a passing merchant. The Flying Dutchman always gets its armada.
 
 Ideas for later: ducks, flying fish, a captain's logbook of everything you have seen.
 
@@ -102,6 +120,7 @@ src/sea/world.js        director (what turns up, and when), load governor, obsta
 src/sea/eco.js          regions, day and night, weather, the food web, cheap schools
 src/sea/mischief.js     cursor capture and page damage, both refused when mischief is off
 src/sea/mate.js         the user's own ships or animals
+src/background.js       the follow hotkey (the only part that runs outside the page)
 src/interact.js         click ripples, scroll slosh, cursor wake
 src/creatures/          one file per creature (prey.js holds the small life)
 src/boot.js             starts everything (always last)

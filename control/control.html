@@ -140,6 +140,9 @@
         <div class="row"><span class="what"><b>Clicks make a ripple</b></span><label class="switch"><input type="checkbox" data-key="click"><span></span></label></div>
         <div class="row"><span class="what"><b>Scrolling sloshes the water</b></span><label class="switch"><input type="checkbox" data-key="scroll"><span></span></label></div>
         <div class="row"><span class="what"><b>Creatures notice the cursor</b><small>They steer round it, and some come up for a look.</small></span><label class="switch"><input type="checkbox" data-key="cursor"><span></span></label></div>
+        <h3>Smoothness</h3>
+        <div class="row"><span class="what"><b>Performance</b><small><b>Auto</b> keeps full detail and eases off by itself the moment a page starts to strain. <b>Smoothest</b> always runs light: fewer animals at once, the water redrawn at 30 frames a second. <b>Full detail</b> never holds back. In every mode the water stops bending the page while you type.</small></span>
+          <select data-key="perf"><option value="auto">Auto</option><option value="smooth">Smoothest</option><option value="full">Full detail</option></select></div>
         <h3>Rest</h3>
         <div class="row"><span class="what"><b>Sleep when the window is in the background</b><small>The sea always stops when its tab is hidden. With this on it also stops 20 seconds after you switch to another window.</small></span><label class="switch"><input type="checkbox" data-key="pauseBlur"><span></span></label></div>
       </section>
@@ -165,7 +168,7 @@
                 <span class="top"><b>Size</b><output></output></span>
                 <input type="range" data-mate="size" min="60" max="160" step="5" data-unit="%">
               </label>
-              <div class="row"><span class="what"><b>How it moves</b></span>
+              <div class="row"><span class="what"><b>How it moves</b><small>Switch at any time on any page with <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd>. <a href="#" id="keys">Change the key</a></small></span>
                 <select data-mate="follow"><option value="cursor">Follows my cursor</option><option value="roam">Roams by itself</option></select></div>
             </div>
 
