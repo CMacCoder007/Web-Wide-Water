@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Web-Wide-Water",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A living sea over any web page: whales, orcas, ships and the odd sea monster while you browse. Mischief can be switched off.",
+  "homepage_url": "https://github.com/CMacCoder007/Web-Wide-Water",
+  "minimum_chrome_version": "102",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

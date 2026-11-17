@@ -14,7 +14,7 @@
 (() => {
   const Sea = window.Sea;
   if (!Sea || Sea.world) return;
-  const { rand, clamp, lerp, turn } = Sea.util;
+  const { rand, clamp, lerp } = Sea.util;
 
   const live = [];          // { def, ent }
   const obstacles = new Set();

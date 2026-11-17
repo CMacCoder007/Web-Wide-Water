@@ -4,7 +4,9 @@ A living sea over whatever web page you are on. The page is the water: it ripple
 wildlife, ships and the odd monster crosses it while you browse. With mischief switched off the page is never
 touched; with it on, anything the sea does to the page puts itself right within seconds.
 
-It collects no data and makes no network requests. Its only permission is `storage`, to remember your settings.
+It collects no data and makes no network requests. It asks for one permission, `storage`, to remember your
+settings, and runs on the pages you visit so that it can draw the sea over them. Requires Chrome 102 or later
+(or Edge, Brave and other Chromium browsers).
 
 ## Turning it off
 
@@ -12,14 +14,20 @@ It collects no data and makes no network requests. Its only permission is `stora
 - "On this site" turns it off for one website.
 - **Press Esc three times quickly** on any page: everything stops and the page is exactly as it was.
 
-## Install (unpacked)
+## Install
 
-1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and choose this folder.
-3. Refresh any tab that was already open, then click the toolbar icon and switch the sea on.
+1. Download `Web-Wide-Water-<version>.zip` from the
+   [latest release](https://github.com/CMacCoder007/Web-Wide-Water/releases/latest) and unzip it.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the unzipped folder (the one with `manifest.json` in it).
+4. Refresh any tab that was already open, then click the toolbar icon and switch the sea on.
+
+To update, unzip the new release over the old folder, click the reload icon on the extension's card, and
+refresh your tabs. Your settings and champion are kept.
+
+You can also load a clone of this repository directly; it is the same extension.
 
 It cannot run on `chrome://` pages, the new tab page or the Chrome Web Store.
-After changing the code: click the reload icon on the extension's card, then refresh your tabs.
 
 ## What is in it
 
@@ -127,6 +135,8 @@ src/boot.js             starts everything (always last)
 demo/index.html         offline test page
 docs/ADDING_A_CREATURE.md
 tools/check.js          one command that catches syntax errors and missing files
+tools/package.js        builds the release zip
+CHANGELOG.md            what changed in each version
 ```
 
 To add a creature, read [docs/ADDING_A_CREATURE.md](docs/ADDING_A_CREATURE.md).
@@ -150,3 +160,23 @@ python -m http.server 8765 --bind 127.0.0.1
 
 Then open `http://127.0.0.1:8765/demo/index.html`. Add `?timer` to drive animation from a timer (useful when
 the window is in the background), or `?off` to start with the sea off.
+
+After changing the code of the installed extension: click the reload icon on its card, then refresh your tabs.
+
+### Making a release
+
+1. Raise `version` in `manifest.json` and add a section to `CHANGELOG.md`.
+2. Commit, then build the zip:
+
+   ```bash
+   node tools/package.js
+   ```
+
+   It runs the check, refuses if there are uncommitted changes, and writes `dist/Web-Wide-Water-<version>.zip`
+   with only the files the extension needs.
+3. Tag the commit (`git tag -a v<version> -m "Web-Wide-Water <version>"`), push the commit and tag, and on
+   GitHub create a release from the tag with the zip attached and the changelog section as its notes.
+
+## Licence
+
+[MIT](LICENSE). Use it, change it and share it; keep the copyright notice.

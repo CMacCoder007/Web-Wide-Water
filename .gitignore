@@ -10,3 +10,6 @@ desktop.ini
 *.zip
 *.crx
 *.pem
+
+# release builds (made by tools/package.js)
+dist/

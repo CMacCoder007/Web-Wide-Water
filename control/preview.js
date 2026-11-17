@@ -3,7 +3,6 @@
 // src/core.js) so nothing here reaches the user's real settings.
 (async () => {
   window.__seaPreview = true;
-  if (location.search.includes('timer')) window.__seaClock = 'timer';    // for testing in a background window
   window.__seaDemo = {
     on: true, busy: 0, mischief: false, sky: 'day', weather: 'clear', region: 'open', pauseBlur: false,
     distortion: 45, mate: { kind: 'none' }
